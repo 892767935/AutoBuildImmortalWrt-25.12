@@ -1,0 +1,11 @@
+{
+	"luci-app-lucky": {
+		"description": "Grant access to Lucky management interface",
+		"read": {
+			"uci": [ "lucky" ]
+		},
+		"write": {
+			"uci": [ "lucky" ]
+		}
+	}
+}
