@@ -58,20 +58,23 @@ echo "🔄 正在下载 lucky ipk 并解包到 files ..."
 LUCKY_URL="https://dl.openwrt.ai/packages-25.12/x86_64/kiddin9/lucky_2.27.2-r4_x86_64.ipk"
 mkdir -p /tmp/lucky
 if wget -q "$LUCKY_URL" -O /tmp/lucky/lucky.ipk; then
-  cd /tmp/lucky
-  # lucky.ipk 实际是 gzip 压缩的 tar 容器，内含 data.tar.gz / control.tar.gz
-  tar xzf lucky.ipk
-  if [ -f data.tar.gz ]; then
-    # 把 data 里的文件 (./etc/init.d/lucky ./etc/config/lucky ./usr/bin/lucky ./usr/libexec/lucky-runner) 解到 files/
-    tar xzf data.tar.gz -C /home/build/immortalwrt/files/
-    chmod +x /home/build/immortalwrt/files/usr/bin/lucky 2>/dev/null
-    chmod +x /home/build/immortalwrt/files/etc/init.d/lucky 2>/dev/null
-    chmod +x /home/build/immortalwrt/files/usr/libexec/lucky-runner 2>/dev/null
-    echo "✅ lucky 文件已集成到 files/ :"
-    ls -lh /home/build/immortalwrt/files/usr/bin/lucky
-  else
-    echo "⚠️ lucky ipk 解包失败(未找到 data.tar.gz)"
-  fi
+  # 用 subshell 包裹 cd，避免改变主脚本的工作目录（否则后续 make image 会找不到 Makefile）
+  (
+    cd /tmp/lucky
+    # lucky.ipk 实际是 gzip 压缩的 tar 容器，内含 data.tar.gz / control.tar.gz
+    tar xzf lucky.ipk
+    if [ -f data.tar.gz ]; then
+      # 把 data 里的文件 (./etc/init.d/lucky ./etc/config/lucky ./usr/bin/lucky ./usr/libexec/lucky-runner) 解到 files/
+      tar xzf data.tar.gz -C /home/build/immortalwrt/files/
+      chmod +x /home/build/immortalwrt/files/usr/bin/lucky 2>/dev/null
+      chmod +x /home/build/immortalwrt/files/etc/init.d/lucky 2>/dev/null
+      chmod +x /home/build/immortalwrt/files/usr/libexec/lucky-runner 2>/dev/null
+      echo "✅ lucky 文件已集成到 files/ :"
+      ls -lh /home/build/immortalwrt/files/usr/bin/lucky
+    else
+      echo "⚠️ lucky ipk 解包失败(未找到 data.tar.gz)"
+    fi
+  )
 else
   echo "⚠️ lucky 下载失败，将不集成 lucky"
 fi
@@ -123,19 +126,8 @@ fi
 echo "$(date '+%Y-%m-%d %H:%M:%S') - Building image with the following packages:"
 echo "$PACKAGES"
 
-# ============ 诊断：定位 make image 为何 No rule ============
-echo "=====DIAG====="
-echo "pwd: $(pwd)"
-echo "Makefile 大小: $(wc -c < Makefile 2>/dev/null || echo 无)"
-echo "Makefile 前5行:"
-head -5 Makefile 2>&1
-echo "grep image target:"
-grep -n "^image:" Makefile 2>&1
-echo "--- make -s help 前15行 ---"
-make -s help 2>&1 | head -15
-echo "--- make -n image 前15行 ---"
-make -n image 2>&1 | head -15
-echo "=====END DIAG====="
+# 确保在 imagebuilder 根目录执行 make image (lucky 等子流程曾切换过工作目录)
+cd /home/build/immortalwrt
 
 make image PROFILE="generic" PACKAGES="$PACKAGES" FILES="/home/build/immortalwrt/files" ROOTFS_PARTSIZE=$PROFILE
 
