@@ -61,6 +61,10 @@ fi
   "$APK_BIN" mkndx --allow-untrusted --output /tmp/az.adb adzero-immortalwrt-25.12.2-x86_64.apk 2>&1 | head -20
   echo "adzero mkndx exit=$?"
   if [ -f /tmp/az.adb ]; then echo "az.adb 大小: $(wc -c < /tmp/az.adb)"; fi
+  echo "--- az.adb 可读内容 ---"
+  grep -a -oE '[ -~]{3,}' /tmp/az.adb 2>/dev/null | head -50
+  echo "--- az.adb hexdump 前80字节 ---"
+  od -A x -t x1z -v /tmp/az.adb 2>/dev/null | head -8
   echo "--- 解析所有 apk ---"
   "$APK_BIN" mkndx --allow-untrusted --output /tmp/test.adb *.apk 2>&1 | head -40
   echo "all mkndx exit=$?"
