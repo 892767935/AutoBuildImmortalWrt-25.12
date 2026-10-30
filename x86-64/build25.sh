@@ -52,23 +52,20 @@ APK_BIN=/home/build/immortalwrt/staging_dir/host/bin/apk
 if wget -q "$ADZERO_URL" -O /home/build/immortalwrt/packages/adzero-immortalwrt-25.12.2-x86_64.apk; then
   echo "✅ AdZero apk 已下载:"
   ls -lh /home/build/immortalwrt/packages/adzero-immortalwrt-25.12.2-x86_64.apk
-  # 用 apk 直接解包 adzero 到临时 root：--initdb 是全局选项须放在 add 之前；
-  # 不用管道判断退出码（管道后 $? 是 head 的），重定向到日志文件再取真实 exit
+  echo "=== 诊断: apk 版本选项 + adbdump + 自动依赖解包 ==="
+  echo "--- apk add --help (查跳过依赖/强制选项) ---"
+  "$APK_BIN" add --help 2>&1 | head -25
+  echo "--- apk adbdump adzero.apk (包内文件列表) ---"
+  "$APK_BIN" adbdump /home/build/immortalwrt/packages/adzero-immortalwrt-25.12.2-x86_64.apk 2>&1 | head -80
+  echo "--- 尝试 apk add 自动装依赖解包到临时 root ---"
   rm -rf /tmp/adzroot && mkdir -p /tmp/adzroot
-  "$APK_BIN" --root /tmp/adzroot --initdb add --no-deps --allow-untrusted /home/build/immortalwrt/packages/adzero-immortalwrt-25.12.2-x86_64.apk > /tmp/adzero_add.log 2>&1
-  echo "apk add --no-deps exit=$?"
-  echo "--- apk add 日志 ---"
-  cat /tmp/adzero_add.log | head -40
-  echo "--- /tmp/adzroot 内容 ---"
-  find /tmp/adzroot 2>/dev/null | head -50
-  # 拷贝到 files/ 作文件级集成（最终由 imagebuilder 拷入固件）
-  if [ -d /tmp/adzroot/usr ] || [ -d /tmp/adzroot/etc ]; then
-    cp -a /tmp/adzroot/. /home/build/immortalwrt/files/
-    echo "✅ adzero 已解包并拷贝到 files/ :"
-    find /tmp/adzroot -type f 2>/dev/null | head -40
-  else
-    echo "⚠️ adzero 解包失败，将不集成"
-  fi
+  "$APK_BIN" --root /tmp/adzroot --initdb add --allow-untrusted /home/build/immortalwrt/packages/adzero-immortalwrt-25.12.2-x86_64.apk > /tmp/adzero_add.log 2>&1
+  echo "apk add (auto-deps) exit=$?"
+  cat /tmp/adzero_add.log | head -20
+  echo "--- /tmp/adzroot 文件 ---"
+  find /tmp/adzroot -type f 2>/dev/null | head -60
+  echo "=== adzero 解包验证结束 ==="
+  exit 0
 else
   echo "⚠️ AdZero 下载失败，将不集成 luci-app-adzero"
 fi
