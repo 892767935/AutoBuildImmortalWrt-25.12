@@ -51,6 +51,16 @@ else
   echo "⚠️ AdZero 下载失败，将不集成 luci-app-adzero"
 fi
 
+# ===== 诊断: apk mkndx 是否能正确解析 packages/*.apk =====
+(
+  cd /home/build/immortalwrt/packages
+  echo "=== 诊断 apk mkndx ==="
+  apk mkndx --allow-untrusted --output /tmp/test.adb *.apk 2>&1 | head -40
+  echo "mkndx exit=$?"
+  if [ -f /tmp/test.adb ]; then echo "test.adb 生成, 大小: $(wc -c < /tmp/test.adb)"; fi
+  echo "=== 诊断结束 ==="
+)
+
 # ============= 2. 集成 lucky (文件级集成，解包到 files) =============
 # lucky 官方/主流源只有 .ipk (25.12 无 apk)，但 lucky 二进制为静态编译(仅依赖libc)，
 # 且只有 4 个文件，非常适合"文件级集成"：解包后放入 files/ 由 imagebuilder 拷入 rootfs。
