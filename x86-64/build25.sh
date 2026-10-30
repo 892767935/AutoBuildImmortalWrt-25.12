@@ -123,6 +123,20 @@ fi
 echo "$(date '+%Y-%m-%d %H:%M:%S') - Building image with the following packages:"
 echo "$PACKAGES"
 
+# ============ 诊断：定位 make image 为何 No rule ============
+echo "=====DIAG====="
+echo "pwd: $(pwd)"
+echo "Makefile 大小: $(wc -c < Makefile 2>/dev/null || echo 无)"
+echo "Makefile 前5行:"
+head -5 Makefile 2>&1
+echo "grep image target:"
+grep -n "^image:" Makefile 2>&1
+echo "--- make -s help 前15行 ---"
+make -s help 2>&1 | head -15
+echo "--- make -n image 前15行 ---"
+make -n image 2>&1 | head -15
+echo "=====END DIAG====="
+
 make image PROFILE="generic" PACKAGES="$PACKAGES" FILES="/home/build/immortalwrt/files" ROOTFS_PARTSIZE=$PROFILE
 
 if [ $? -ne 0 ]; then
