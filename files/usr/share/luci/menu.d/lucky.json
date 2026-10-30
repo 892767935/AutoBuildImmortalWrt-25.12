@@ -1,0 +1,15 @@
+{
+  "admin/services/lucky": {
+    "title": "Lucky",
+    "order": 30,
+    "action": {
+      "type": "view",
+      "path": "lucky/index"
+    },
+    "depends": {
+      "uci": {
+        "lucky": true
+      }
+    }
+  }
+}
