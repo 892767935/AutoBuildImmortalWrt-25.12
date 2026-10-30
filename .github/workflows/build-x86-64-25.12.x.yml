@@ -96,7 +96,7 @@ jobs:
           | 插件 | 说明 |
           |---|---|
           | OpenClash | 代理客户端，含 clash_meta 内核 + GeoIP/GeoSite |
-          | Lucky | 文件级集成，独立界面 http://路由器IP:16601 |
+          | Lucky | apk 三件套（luci-app-lucky + lucky + 中文包），侧边栏菜单与软件包管理器可见 |
           | AdZero | 去广告（官方 apk 集成） |
           | Argon | luci-theme-argon 主题 |
 

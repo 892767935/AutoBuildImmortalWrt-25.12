@@ -10,7 +10,7 @@
 | 插件 | 集成方式 | 说明 |
 |------|----------|------|
 | **OpenClash** | 官方 luci apk | `luci-app-openclash`，自动附带 clash_meta 内核 + GeoIP/GeoSite 数据库 |
-| **Lucky** | 文件级集成 | 25.12 官方/第三方源暂无 apk（仅 ipk），本仓库将 Lucky 静态二进制与启动脚本以文件形式打入固件，刷机即用 |
+| **Lucky** | apk 三件套 | `luci-app-lucky` + `lucky` + `luci-i18n-lucky-zh-cn`（来源 wukongdaily/apk 的 25.12 apk 源），标准 apk 安装，侧边栏菜单与软件包管理器均可见 |
 | **AdZero** | 官方 release apk（文件级集成） | `luci-app-adzero`（v0.21.5），官方为 ImmortalWrt 25.12.2 预编译。因该 apk 无法被 imagebuilder 的 apk 索引安装，采用「apk add 解包 → 拷贝 AdZero 专属文件到 `files/`」打入固件，并补齐其全部运行时依赖（adblock-fast、conntrack、tcpdump-mini、ucode 全家等） |
 | **Argon 主题** | 官方 luci apk | `luci-theme-argon` + `luci-app-argon-config` + 中文语言包，刷机后默认生效 |
 
@@ -23,7 +23,7 @@
 - ImmortalWrt **25.12 起包管理器从 opkg 改为 apk**，官方仓库包为 `.apk` 格式。
 - ImageBuilder 的 `packages/` 目录只认 `.apk` 文件，`.ipk` 无法被 25.12 安装。
 - 本项目已按此适配：
-  - `x86-64/build25.sh`：Lucky 以 ipk 解包到 `files/`（文件级集成）；AdZero 以 `apk add <adzero.apk>`（带官方仓库解析依赖）解包到临时 root，再用 `apk info -L` 列出其专属文件拷入 `files/`，依赖由 PACKAGES 显式安装。
+  - `x86-64/build25.sh`：Lucky 以 apk 三件套（`luci-app-lucky` + `lucky` + `luci-i18n-lucky-zh-cn`）下载到 `packages/` 并由 PACKAGES 安装；AdZero 以 `apk add <adzero.apk>`（带官方仓库解析依赖）解包到临时 root，再用 `apk info -L` 列出其专属文件拷入 `files/`，依赖由 PACKAGES 显式安装。
   - `shell/prepare-packages.sh`：改为收集 `.apk`。
   - `x86-64/imm.config`：`CONFIG_USE_APK=y`，opkg 相关选项全部替换为 apk / luci-app-package-manager。
   - `files/etc/uci-defaults/99-custom.sh`：`opkg list-installed` → `apk info`，并启用 Lucky 服务、设置 Argon 为默认主题、做网口/防火墙/DNS 等开机初始化。
@@ -63,7 +63,7 @@
 ## 📦 插件来源
 
 - OpenClash：ImmortalWrt 25.12.2 官方 luci 仓库
-- Lucky：kiddin9 `dl.openwrt.ai/packages-25.12`（文件级集成，版本 2.27.2）
+- Lucky：wukongdaily/apk（25.12 apk 三件套：`luci-app-lucky` 3.0.3 + `lucky` 2.27.2 + 中文包）
 - AdZero：[slobys/AdZero](https://github.com/slobys/AdZero) 官方 Release（v0.21.5，ImmortalWrt 25.12.2）
 - Argon：ImmortalWrt 25.12.2 官方 luci 仓库
 
@@ -76,7 +76,7 @@
 │   ├── custom-packages.sh                        # 可选第三方插件拼接
 │   └── prepare-packages.sh                       # 收集 .apk
 └── x86-64/
-    ├── build25.sh                                # 25.12 构建脚本(Lucky/AdZero 文件级集成 + make image)
+    ├── build25.sh                                # 25.12 构建脚本(Lucky apk / AdZero 集成 + make image)
     └── imm.config                                # 25.12 (apk) 内核配置
 ```
 
