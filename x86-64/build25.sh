@@ -47,15 +47,33 @@ ADZERO_URL="https://github.com/slobys/AdZero/releases/download/v0.21.5/adzero-im
 if wget -q "$ADZERO_URL" -O /home/build/immortalwrt/packages/adzero-immortalwrt-25.12.2-x86_64.apk; then
   echo "✅ AdZero apk 已下载:"
   ls -lh /home/build/immortalwrt/packages/*.apk
-  # 确认 adzero apk 内部声明的包名/版本/架构 (应为 luci-app-adzero / 0.21.5-r1 / noarch)
-  echo "--- apk adbdump adzero ---"
-  /home/build/immortalwrt/staging_dir/host/bin/apk adbdump /home/build/immortalwrt/packages/adzero-immortalwrt-25.12.2-x86_64.apk 2>&1 | head -30
-  # 重命名为 OpenWrt 标准 apk 命名，使文件名与内部包名 luci-app-adzero 一致，
-  # 否则 apk add 无法按 luci-app-adzero 索引到该文件 (报 no such package)
-  mv /home/build/immortalwrt/packages/adzero-immortalwrt-25.12.2-x86_64.apk /home/build/immortalwrt/packages/luci-app-adzero_0.21.5-r1_noarch.apk
+  # 重命名为 OpenWrt 标准 apk 命名，使文件名与内部包名 luci-app-adzero 一致
+  mv -f /home/build/immortalwrt/packages/adzero-immortalwrt-25.12.2-x86_64.apk /home/build/immortalwrt/packages/luci-app-adzero_0.21.5-r1_noarch.apk
   echo "✅ 已重命名为: luci-app-adzero_0.21.5-r1_noarch.apk"
 else
   echo "⚠️ AdZero 下载失败，将不集成 luci-app-adzero"
+fi
+
+# ===== dev 分支诊断: apk 为何取不到 adzero 文件 =====
+APK_BIN=/home/build/immortalwrt/staging_dir/host/bin/apk
+echo "=== 诊断: 生成本地索引并尝试 fetch adzero ==="
+( cd /home/build/immortalwrt/packages && "$APK_BIN" mkndx --allow-untrusted --output packages.adb *.apk 2>&1; echo "mkndx exit=$?" )
+echo "--- packages.adb 大小 ---"
+ls -l /home/build/immortalwrt/packages/packages.adb 2>&1
+echo "--- apk fetch luci-app-adzero (从本地索引取文件) ---"
+mkdir -p /tmp/adzroot
+"$APK_BIN" --root /tmp/adzroot --repository /home/build/immortalwrt/packages/packages.adb --allow-untrusted fetch luci-app-adzero 2>&1 | head -20
+echo "fetch exit=$?"
+echo "--- apk add 到临时 root (尝试解包) ---"
+"$APK_BIN" --root /tmp/adzroot add --initdb --arch x86_64 --allow-untrusted --repository /home/build/immortalwrt/packages/packages.adb luci-app-adzero 2>&1 | head -20
+echo "add exit=$?"
+echo "--- 若解包成功则拷贝到 files/ 兜底 ---"
+if [ -d /tmp/adzroot/usr ] || [ -d /tmp/adzroot/etc ] || [ -f /tmp/adzroot/luci-app-adzero_0.21.5-r1_noarch.apk ]; then
+  echo "✅ adzero 已获取/解包，拷贝到 files/ 兜底"
+  cp -a /tmp/adzroot/. /home/build/immortalwrt/files/
+  find /tmp/adzroot -maxdepth 3 2>/dev/null | head -30
+else
+  echo "⚠️ adzero 未解包成功，仅走 PACKAGES apk 安装路径"
 fi
 
 # ============= 2. 集成 lucky (文件级集成，解包到 files) =============
@@ -103,10 +121,8 @@ PACKAGES="$PACKAGES luci-i18n-package-manager-zh-cn"
 # ====== 代理 ======
 PACKAGES="$PACKAGES luci-app-openclash"
 # ====== 去广告 ======
-# 注意：luci-app-adzero (AdZero) 当前安装报 "package mentioned in index not found"，
-# 为让编译先通过、先产出固件，暂时移出 PACKAGES。AdZero apk 仍会下载到 packages/，
-# 后续修复 file 引用后可重新启用下面这行。
-# PACKAGES="$PACKAGES luci-app-adzero"
+# dev 分支测试：重新启用 luci-app-adzero，排查 apk 取不到文件的问题
+PACKAGES="$PACKAGES luci-app-adzero"
 # ======== shell/custom-packages.sh =======
 # 合并imm仓库以外的第三方插件
 PACKAGES="$PACKAGES $CUSTOM_PACKAGES"
