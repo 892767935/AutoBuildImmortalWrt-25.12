@@ -60,29 +60,6 @@
 - **Lucky**：默认启用（`lucky.@lucky[0].enabled=1` + init 服务）。
 - **版本标识**：`DISTRIB_DESCRIPTION = "Packaged by mantang"`。
 
-## 🆕 如何在 GitHub 新建项目（保姆级）
-
-> 如果你不想 fork，而是想**从零新建一个仓库**放这套 25.12 方案：
-
-1. 登录 GitHub → 右上角 **+** → **New repository**。
-2. Repository name 填如 `AutoBuildImmortalWrt-25.12`；选择 **Public**（或 Private）；**不要**勾选 "Add a README file"（否则会冲突）。
-3. 点击 **Create repository**。
-4. 在本机把本仓库目录初始化为 git 并推送：
-
-   ```bash
-   cd AutoBuildImmortalWrt-25.12
-   git init
-   git add .
-   git commit -m "feat: ImmortalWrt 25.12 build with OpenClash/Lucky/AdZero/Argon"
-   git branch -M main
-   git remote add origin https://github.com/你的用户名/AutoBuildImmortalWrt-25.12.git
-   git push -u origin main
-   ```
-
-5. 回到 GitHub 仓库 → **Actions** → 按上文基本用法运行工作流。
-
-> 💡 若提示 Actions 未启用，在仓库 **Settings → Actions → General** 打开权限即可。
-
 ## 📦 插件来源
 
 - OpenClash：ImmortalWrt 25.12.2 官方 luci 仓库
