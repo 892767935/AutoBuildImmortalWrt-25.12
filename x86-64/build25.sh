@@ -39,46 +39,33 @@ EOF
 echo "cat pppoe-settings"
 cat /home/build/immortalwrt/files/etc/config/pppoe-settings
 
-# ============= 1. 集成 AdZero (官方 apk -> packages 目录) =============
-# AdZero = luci-app-adzero，官方为 ImmortalWrt 25.12.2 提供预编译 apk
+# ============= 1. 集成 AdZero (官方 apk -> 文件级集成到 files/) =============
+# AdZero = luci-app-adzero，官方为 ImmortalWrt 25.12.2 提供预编译 apk。
+# 官方 install.sh 的安装方式是 `apk add <file.apk>` 直接装本地文件（不经过包索引/包名）。
+# 经排查，把 adzero 放进 packages/ 由 make 走 apk 索引安装时，因 file 引用/布局问题无法取到文件。
+# 因此这里改用 apk add --no-deps 直接解包到临时 root，再拷入 files/，
+# 由 imagebuilder 在 prepare_rootfs 阶段拷入固件 rootfs（运行时依赖由 PACKAGES 安装，见 adblock-fast）。
 echo "🔄 正在下载 AdZero 官方 apk ..."
 mkdir -p /home/build/immortalwrt/packages
 ADZERO_URL="https://github.com/slobys/AdZero/releases/download/v0.21.5/adzero-immortalwrt-25.12.2-x86_64.apk"
+APK_BIN=/home/build/immortalwrt/staging_dir/host/bin/apk
 if wget -q "$ADZERO_URL" -O /home/build/immortalwrt/packages/adzero-immortalwrt-25.12.2-x86_64.apk; then
   echo "✅ AdZero apk 已下载:"
-  ls -lh /home/build/immortalwrt/packages/*.apk
-  # 重命名为 OpenWrt imagebuilder 本地 apk 风格 <name>-<version>.apk (无 arch，连字符)，
-  # 与 base-files-1950~... / libc-1.2.5-r5 一致，否则 apk 索引的 file 引用会找不到实际文件
-  mv -f /home/build/immortalwrt/packages/adzero-immortalwrt-25.12.2-x86_64.apk /home/build/immortalwrt/packages/luci-app-adzero-0.21.5-r1.apk
-  echo "✅ 已重命名为: luci-app-adzero-0.21.5-r1.apk"
+  ls -lh /home/build/immortalwrt/packages/adzero-immortalwrt-25.12.2-x86_64.apk
+  # 用 apk add --no-deps 直接解包 adzero 到临时 root（跳过依赖检查，仅放文件）
+  rm -rf /tmp/adzroot && mkdir -p /tmp/adzroot
+  "$APK_BIN" add --initdb --no-deps --allow-untrusted --root /tmp/adzroot /home/build/immortalwrt/packages/adzero-immortalwrt-25.12.2-x86_64.apk 2>&1 | head -30
+  echo "apk add --no-deps exit=$?"
+  # 拷贝到 files/ 作文件级集成（最终由 imagebuilder 拷入固件）
+  if [ -d /tmp/adzroot/usr ] || [ -d /tmp/adzroot/etc ]; then
+    cp -a /tmp/adzroot/. /home/build/immortalwrt/files/
+    echo "✅ adzero 已解包并拷贝到 files/ :"
+    find /tmp/adzroot -type f 2>/dev/null | head -40
+  else
+    echo "⚠️ adzero 解包失败，将不集成"
+  fi
 else
   echo "⚠️ AdZero 下载失败，将不集成 luci-app-adzero"
-fi
-
-# ===== dev 分支诊断: apk 为何取不到 adzero 文件 =====
-APK_BIN=/home/build/immortalwrt/staging_dir/host/bin/apk
-echo "=== 诊断: 生成本地索引并尝试 fetch adzero ==="
-( cd /home/build/immortalwrt/packages && "$APK_BIN" mkndx --allow-untrusted --output packages.adb *.apk 2>&1; echo "mkndx exit=$?" )
-echo "--- packages.adb 大小 ---"
-ls -l /home/build/immortalwrt/packages/packages.adb 2>&1
-echo "--- adbdump packages.adb (adzero 实际索引条目) ---"
-"$APK_BIN" adbdump /home/build/immortalwrt/packages/packages.adb 2>&1 | head -120
-echo "--- apk fetch luci-app-adzero (repository=目录) ---"
-mkdir -p /tmp/adzroot
-"$APK_BIN" --root /tmp/adzroot --repository /home/build/immortalwrt/packages --allow-untrusted fetch luci-app-adzero 2>&1 | head -20
-echo "fetch adzero exit=$? (0=找到文件)"
-echo "--- apk fetch base-files (对比: 本地包能否取到) ---"
-"$APK_BIN" --root /tmp/adzroot --repository /home/build/immortalwrt/packages --allow-untrusted fetch base-files 2>&1 | head -10
-echo "--- apk add 到临时 root (尝试解包) ---"
-"$APK_BIN" --root /tmp/adzroot add --initdb --arch x86_64 --allow-untrusted --repository /home/build/immortalwrt/packages luci-app-adzero 2>&1 | head -20
-echo "add exit=$?"
-echo "--- 若解包成功则拷贝到 files/ 兜底 ---"
-if [ -d /tmp/adzroot/usr ] || [ -d /tmp/adzroot/etc ] || [ -f /tmp/adzroot/luci-app-adzero_0.21.5-r1_noarch.apk ]; then
-  echo "✅ adzero 已获取/解包，拷贝到 files/ 兜底"
-  cp -a /tmp/adzroot/. /home/build/immortalwrt/files/
-  find /tmp/adzroot -maxdepth 3 2>/dev/null | head -30
-else
-  echo "⚠️ adzero 未解包成功，仅走 PACKAGES apk 安装路径"
 fi
 
 # ============= 2. 集成 lucky (文件级集成，解包到 files) =============
@@ -126,8 +113,9 @@ PACKAGES="$PACKAGES luci-i18n-package-manager-zh-cn"
 # ====== 代理 ======
 PACKAGES="$PACKAGES luci-app-openclash"
 # ====== 去广告 ======
-# dev 分支测试：重新启用 luci-app-adzero，排查 apk 取不到文件的问题
-PACKAGES="$PACKAGES luci-app-adzero"
+# AdZero 已改为文件级集成（见上方 AdZero 段），不再加入 PACKAGES（避免走 apk 索引安装失败）；
+# 其运行时依赖 adblock-fast 显式加入 PACKAGES 由 make 安装
+PACKAGES="$PACKAGES adblock-fast"
 # ======== shell/custom-packages.sh =======
 # 合并imm仓库以外的第三方插件
 PACKAGES="$PACKAGES $CUSTOM_PACKAGES"
