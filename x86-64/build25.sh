@@ -63,19 +63,13 @@ fi
   if [ -f /tmp/az.adb ]; then echo "az.adb 大小: $(wc -c < /tmp/az.adb)"; fi
   echo "--- 生成 packages/packages.adb (mkndx 全部) ---"
   "$APK_BIN" mkndx --allow-untrusted --output packages.adb *.apk 2>&1 | head
-  echo "--- apk list 本地仓库真实包名 ---"
-  "$APK_BIN" list --repositories-file /dev/null --repository /home/build/immortalwrt/packages/packages.adb '*' 2>&1 | head -40
-  echo "--- apk add --simulate luci-app-adzero 完整输出 ---"
+  echo "--- apk list 带 root 查真实包名 ---"
   mkdir -p /home/build/immortalwrt/tmp/root
-  "$APK_BIN" --root /home/build/immortalwrt/tmp/root \
-    --repository /home/build/immortalwrt/packages/packages.adb \
-    --allow-untrusted \
-    add --arch x86_64 --no-scripts --simulate luci-app-adzero 2>&1 | head -30
-  echo "--- apk add --simulate 用通配符匹配 adzero ---"
-  "$APK_BIN" --root /home/build/immortalwrt/tmp/root \
-    --repository /home/build/immortalwrt/packages/packages.adb \
-    --allow-untrusted \
-    add --arch x86_64 --no-scripts --simulate '*adzero*' 2>&1 | head -30
+  "$APK_BIN" --root /home/build/immortalwrt/tmp/root --initdb --repositories-file /dev/null --repository /home/build/immortalwrt/packages/packages.adb --allow-untrusted update 2>&1 | head -5
+  "$APK_BIN" --root /home/build/immortalwrt/tmp/root --repositories-file /dev/null --repository /home/build/immortalwrt/packages/packages.adb list 2>&1 | head -40
+  echo "--- apk info 单个 adzero apk 直接读 pkgname ---"
+  "$APK_BIN" --root /home/build/immortalwrt/tmp/root --repositories-file /dev/null --repository /home/build/immortalwrt/packages/packages.adb --allow-untrusted info adzero-immortalwrt-25.12.2-x86_64 2>&1 | head -20
+  "$APK_BIN" --root /home/build/immortalwrt/tmp/root --repositories-file /dev/null --repository /home/build/immortalwrt/packages/packages.adb --allow-untrusted info '*' 2>&1 | head -40
   echo "--- 解析所有 apk ---"
   "$APK_BIN" mkndx --allow-untrusted --output /tmp/test.adb *.apk 2>&1 | head -40
   echo "all mkndx exit=$?"
