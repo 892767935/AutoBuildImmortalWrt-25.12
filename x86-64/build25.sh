@@ -60,6 +60,8 @@ echo "=== 诊断: 生成本地索引并尝试 fetch adzero ==="
 ( cd /home/build/immortalwrt/packages && "$APK_BIN" mkndx --allow-untrusted --output packages.adb *.apk 2>&1; echo "mkndx exit=$?" )
 echo "--- packages.adb 大小 ---"
 ls -l /home/build/immortalwrt/packages/packages.adb 2>&1
+echo "--- adbdump packages.adb (adzero 实际索引条目) ---"
+"$APK_BIN" adbdump /home/build/immortalwrt/packages/packages.adb 2>&1 | head -120
 echo "--- apk fetch luci-app-adzero (从本地索引取文件) ---"
 mkdir -p /tmp/adzroot
 "$APK_BIN" --root /tmp/adzroot --repository /home/build/immortalwrt/packages/packages.adb --allow-untrusted fetch luci-app-adzero 2>&1 | head -20
