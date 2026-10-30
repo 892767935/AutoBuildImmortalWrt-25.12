@@ -1,5 +1,4 @@
 name: build-x86-64-immortalwrt-25.12.x
-
 on:
   workflow_dispatch:
     inputs:
@@ -43,27 +42,21 @@ on:
       pppoe_password:
         description: "宽带密码 (若启用PPPoE)"
         required: false
-
 jobs:
   build:
     runs-on: ubuntu-22.04
     permissions:
       contents: write
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
-
       - name: Set executable permissions
         run: chmod +x ${{ github.workspace }}/x86-64/build25.sh
-
       - name: Save Custom Router IP into OpenWrt files
         run: |
           mkdir -p "${{ github.workspace }}/custom"
           echo "${{ github.event.inputs.custom_router_ip }}" > "${{ github.workspace }}/custom/custom_router_ip.txt"
           echo "您设置的路由器管理地址是:${{ github.event.inputs.custom_router_ip }}"
-          # 后续步骤会将该文件映射到路由器/etc/config/custom_router_ip.txt 以便用于开机脚本99-custom.sh读取用户设置的ip
-
       - name: Validate PPPoE Inputs
         run: |
           if [[ "${{ inputs.enable_pppoe }}" == "yes" ]]; then
@@ -72,7 +65,6 @@ jobs:
               exit 1
             fi
           fi
-
       - name: Build ImmortalWrt-x86-64-efi 25.12.x
         run: |
           profile="${{ github.event.inputs.profile }}"
@@ -92,27 +84,29 @@ jobs:
             -e PPPOE_ACCOUNT=${{ inputs.pppoe_account }} \
             -e PPPOE_PASSWORD=${{ inputs.pppoe_password }} \
           immortalwrt/imagebuilder:x86-64-openwrt-${luci_version} /bin/bash /home/build/immortalwrt/build.sh
-
       - name: Create info
         run: |
-          cat > ${{ github.workspace }}/router-info.md <<EOF
-          ## 📡 路由器后台信息
-          <a href="https://wkdaily.cpolar.cn/archives/1">
-           <img src="https://img.shields.io/badge/若下载慢可套用国内加速站下载-FC7C0D?logo=github&logoColor=fff&labelColor=000&style=for-the-badge"/>
-          </a>
-
+          cat > ${{ github.workspace }}/router-info.md <<'EOF'
+          # 📡 路由器后台信息
           - 🏠 **后台地址**: ${{ github.event.inputs.custom_router_ip }}
           - 👤 **用户名**: root
           - 🔑 **密码**: 无
+
+          ## 🚀 内置插件
+          | 插件 | 说明 |
+          |---|---|
+          | OpenClash | 代理客户端，含 clash_meta 内核 + GeoIP/GeoSite |
+          | Lucky | 文件级集成，独立界面 http://路由器IP:16601 |
+          | AdZero | 去广告（官方 apk 集成） |
+          | Argon | luci-theme-argon 主题 |
+
+          ## ⚙️ 固件默认配置（对应 99-custom.sh）
+          - 末位物理网口 = WAN，其余 = LAN
+          - 单网口 LAN 走 DHCP；多网口静态 IP（默认 ${{ github.event.inputs.custom_router_ip }}）
+          - WAN 入站 ACCEPT
+          - Argon 主题默认
+          - Lucky 服务已启用
           EOF
-
-          if [ "${{ github.event.inputs.include_docker }}" == "yes" ]; then
-            extra_content="#### 默认带docker"
-            echo -e "\n$extra_content" >> ${{ github.workspace }}/router-info.md
-          else
-            echo -e "\n#### 不带docker" >> ${{ github.workspace }}/router-info.md
-          fi
-
       - name: Upload ImmortWrt as release assets
         uses: softprops/action-gh-release@v2.2.1
         with:
