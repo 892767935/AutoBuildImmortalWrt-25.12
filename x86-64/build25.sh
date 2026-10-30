@@ -47,9 +47,10 @@ ADZERO_URL="https://github.com/slobys/AdZero/releases/download/v0.21.5/adzero-im
 if wget -q "$ADZERO_URL" -O /home/build/immortalwrt/packages/adzero-immortalwrt-25.12.2-x86_64.apk; then
   echo "✅ AdZero apk 已下载:"
   ls -lh /home/build/immortalwrt/packages/*.apk
-  # 重命名为 OpenWrt 标准 apk 命名，使文件名与内部包名 luci-app-adzero 一致
-  mv -f /home/build/immortalwrt/packages/adzero-immortalwrt-25.12.2-x86_64.apk /home/build/immortalwrt/packages/luci-app-adzero_0.21.5-r1_noarch.apk
-  echo "✅ 已重命名为: luci-app-adzero_0.21.5-r1_noarch.apk"
+  # 重命名为 OpenWrt imagebuilder 本地 apk 风格 <name>-<version>.apk (无 arch，连字符)，
+  # 与 base-files-1950~... / libc-1.2.5-r5 一致，否则 apk 索引的 file 引用会找不到实际文件
+  mv -f /home/build/immortalwrt/packages/adzero-immortalwrt-25.12.2-x86_64.apk /home/build/immortalwrt/packages/luci-app-adzero-0.21.5-r1.apk
+  echo "✅ 已重命名为: luci-app-adzero-0.21.5-r1.apk"
 else
   echo "⚠️ AdZero 下载失败，将不集成 luci-app-adzero"
 fi
@@ -62,12 +63,14 @@ echo "--- packages.adb 大小 ---"
 ls -l /home/build/immortalwrt/packages/packages.adb 2>&1
 echo "--- adbdump packages.adb (adzero 实际索引条目) ---"
 "$APK_BIN" adbdump /home/build/immortalwrt/packages/packages.adb 2>&1 | head -120
-echo "--- apk fetch luci-app-adzero (从本地索引取文件) ---"
+echo "--- apk fetch luci-app-adzero (repository=目录) ---"
 mkdir -p /tmp/adzroot
-"$APK_BIN" --root /tmp/adzroot --repository /home/build/immortalwrt/packages/packages.adb --allow-untrusted fetch luci-app-adzero 2>&1 | head -20
-echo "fetch exit=$?"
+"$APK_BIN" --root /tmp/adzroot --repository /home/build/immortalwrt/packages --allow-untrusted fetch luci-app-adzero 2>&1 | head -20
+echo "fetch adzero exit=$? (0=找到文件)"
+echo "--- apk fetch base-files (对比: 本地包能否取到) ---"
+"$APK_BIN" --root /tmp/adzroot --repository /home/build/immortalwrt/packages --allow-untrusted fetch base-files 2>&1 | head -10
 echo "--- apk add 到临时 root (尝试解包) ---"
-"$APK_BIN" --root /tmp/adzroot add --initdb --arch x86_64 --allow-untrusted --repository /home/build/immortalwrt/packages/packages.adb luci-app-adzero 2>&1 | head -20
+"$APK_BIN" --root /tmp/adzroot add --initdb --arch x86_64 --allow-untrusted --repository /home/build/immortalwrt/packages luci-app-adzero 2>&1 | head -20
 echo "add exit=$?"
 echo "--- 若解包成功则拷贝到 files/ 兜底 ---"
 if [ -d /tmp/adzroot/usr ] || [ -d /tmp/adzroot/etc ] || [ -f /tmp/adzroot/luci-app-adzero_0.21.5-r1_noarch.apk ]; then
