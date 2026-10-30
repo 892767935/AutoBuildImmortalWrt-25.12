@@ -39,33 +39,50 @@ EOF
 echo "cat pppoe-settings"
 cat /home/build/immortalwrt/files/etc/config/pppoe-settings
 
-# ============= 1. 集成 AdZero (官方 apk -> 文件级集成到 files/) =============
+# ============= 1. 集成 AdZero (官方 apk -> apk add 到临时 root -> 拷专属文件到 files/) =============
 # AdZero = luci-app-adzero，官方为 ImmortalWrt 25.12.2 提供预编译 apk。
 # 官方 install.sh 的安装方式是 `apk add <file.apk>` 直接装本地文件（不经过包索引/包名）。
-# 经排查，把 adzero 放进 packages/ 由 make 走 apk 索引安装时，因 file 引用/布局问题无法取到文件。
-# 因此这里改用 apk add --no-deps 直接解包到临时 root，再拷入 files/，
-# 由 imagebuilder 在 prepare_rootfs 阶段拷入固件 rootfs（运行时依赖由 PACKAGES 安装，见 adblock-fast）。
+# 经排查：apk-tools 3.0.5 不支持 --no-deps；apk add 到空 root 须配置官方仓库才能解析依赖
+# （Makefile 用 --repositories-file <TOPDIR>/repositories + --repository <PACKAGE_DIR>/packages.adb）。
+# 因此这里：apk add adzero 到临时 root（依赖从官方仓库拉取），再用 apk info -L 列出 adzero 专属
+# 文件拷入 files/，由 imagebuilder 拷入固件 rootfs（不拷贝官方依赖，避免版本覆盖）。
 echo "🔄 正在下载 AdZero 官方 apk ..."
 mkdir -p /home/build/immortalwrt/packages
 ADZERO_URL="https://github.com/slobys/AdZero/releases/download/v0.21.5/adzero-immortalwrt-25.12.2-x86_64.apk"
 APK_BIN=/home/build/immortalwrt/staging_dir/host/bin/apk
+REPOS_FILE=/home/build/immortalwrt/repositories
 if wget -q "$ADZERO_URL" -O /home/build/immortalwrt/packages/adzero-immortalwrt-25.12.2-x86_64.apk; then
   echo "✅ AdZero apk 已下载:"
   ls -lh /home/build/immortalwrt/packages/adzero-immortalwrt-25.12.2-x86_64.apk
-  echo "=== 诊断: apk 版本选项 + adbdump + 自动依赖解包 ==="
-  echo "--- apk add --help (查跳过依赖/强制选项) ---"
-  "$APK_BIN" add --help 2>&1 | head -25
-  echo "--- apk adbdump adzero.apk (包内文件列表) ---"
-  "$APK_BIN" adbdump /home/build/immortalwrt/packages/adzero-immortalwrt-25.12.2-x86_64.apk 2>&1 | head -80
-  echo "--- 尝试 apk add 自动装依赖解包到临时 root ---"
+  echo "--- imagebuilder 官方仓库列表 ---"
+  cat "$REPOS_FILE" 2>/dev/null | head -10
+  echo "--- apk add 到临时 root (依赖从官方仓库解析) ---"
   rm -rf /tmp/adzroot && mkdir -p /tmp/adzroot
-  "$APK_BIN" --root /tmp/adzroot --initdb add --allow-untrusted /home/build/immortalwrt/packages/adzero-immortalwrt-25.12.2-x86_64.apk > /tmp/adzero_add.log 2>&1
-  echo "apk add (auto-deps) exit=$?"
-  cat /tmp/adzero_add.log | head -20
-  echo "--- /tmp/adzroot 文件 ---"
-  find /tmp/adzroot -type f 2>/dev/null | head -60
-  echo "=== adzero 解包验证结束 ==="
-  exit 0
+  "$APK_BIN" --root /tmp/adzroot --initdb --repositories-file "$REPOS_FILE" --allow-untrusted add /home/build/immortalwrt/packages/adzero-immortalwrt-25.12.2-x86_64.apk > /tmp/adzero_add.log 2>&1
+  echo "apk add exit=$?"
+  tail -25 /tmp/adzero_add.log
+  if [ -d /tmp/adzroot/usr ] || [ -d /tmp/adzroot/etc ]; then
+    echo "✅ adzero 安装成功! 拷贝专属文件到 files/"
+    "$APK_BIN" --root /tmp/adzroot info -L luci-app-adzero 2>/dev/null | while IFS= read -r rel; do
+      rel="${rel#/}"
+      [ -z "$rel" ] && continue
+      case "/$rel" in
+        /etc/*|/usr/*|/lib/*|/www/*|/overlay/*)
+          src="/tmp/adzroot/$rel"
+          if [ -f "$src" ]; then
+            dstdir="/home/build/immortalwrt/files/$(dirname "$rel")"
+            mkdir -p "$dstdir"
+            cp -a "$src" "/home/build/immortalwrt/files/$rel"
+          fi
+          ;;
+      esac
+    done
+    echo "--- files/ 中 adzero 相关文件 ---"
+    find /home/build/immortalwrt/files -iname '*adzero*' 2>/dev/null | head -30
+  else
+    echo "⚠️ adzero 安装失败，将不集成"
+    exit 1
+  fi
 else
   echo "⚠️ AdZero 下载失败，将不集成 luci-app-adzero"
 fi
@@ -116,8 +133,10 @@ PACKAGES="$PACKAGES luci-i18n-package-manager-zh-cn"
 PACKAGES="$PACKAGES luci-app-openclash"
 # ====== 去广告 ======
 # AdZero 已改为文件级集成（见上方 AdZero 段），不再加入 PACKAGES（避免走 apk 索引安装失败）；
-# 其运行时依赖 adblock-fast 显式加入 PACKAGES 由 make 安装
+# 补齐其运行时依赖，确保 AdZero 在固件内可用
 PACKAGES="$PACKAGES adblock-fast"
+PACKAGES="$PACKAGES ca-bundle conntrack coreutils-timeout rpcd-mod-file rpcd-mod-ucode tcpdump-mini"
+PACKAGES="$PACKAGES ucode ucode-mod-fs ucode-mod-socket ucode-mod-ubus ucode-mod-uci ucode-mod-uloop"
 # ======== shell/custom-packages.sh =======
 # 合并imm仓库以外的第三方插件
 PACKAGES="$PACKAGES $CUSTOM_PACKAGES"
