@@ -121,7 +121,7 @@ PACKAGES="$PACKAGES curl"
 PACKAGES="$PACKAGES luci-i18n-firewall-zh-cn"
 # ====== argon 主题 ======
 PACKAGES="$PACKAGES luci-theme-argon"
-PACKAGES="$PACKAGES luci-app-argon-config"
+# PACKAGES="$PACKAGES luci-app-argon-config"
 # PACKAGES="$PACKAGES luci-i18n-argon-config-zh-cn"
 # 25.12 使用 apk 包管理器，包管理界面为 luci-app-package-manager (替代 luci-app-opkg)
 PACKAGES="$PACKAGES luci-i18n-package-manager-zh-cn"
