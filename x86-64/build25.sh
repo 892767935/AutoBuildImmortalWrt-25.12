@@ -61,10 +61,41 @@ fi
   "$APK_BIN" mkndx --allow-untrusted --output /tmp/az.adb adzero-immortalwrt-25.12.2-x86_64.apk 2>&1 | head -20
   echo "adzero mkndx exit=$?"
   if [ -f /tmp/az.adb ]; then echo "az.adb 大小: $(wc -c < /tmp/az.adb)"; fi
-  echo "--- az.adb 可读内容 ---"
-  grep -a -oE '[ -~]{3,}' /tmp/az.adb 2>/dev/null | head -50
-  echo "--- az.adb hexdump 前80字节 ---"
-  od -A x -t x1z -v /tmp/az.adb 2>/dev/null | head -8
+  echo "--- python 读 az.adb 内容 ---"
+  python3 - <<'PYEOF'
+import io, tarfile
+try:
+    data = open('/tmp/az.adb','rb').read()
+except Exception as e:
+    print('无法读取 az.adb:', e); data=b''
+print('az.adb size:', len(data), 'magic:', data[:8].hex())
+print('所有可读token:', [t.decode() for t in __import__('re').findall(rb'[\x20-\x7e]{3,}', data)][:80])
+# 尝试 tar
+try:
+    tf = tarfile.open(fileobj=io.BytesIO(data), mode='r:')
+    for m in tf.getnames(): print('tar entry:', m)
+    for name in tf.getnames():
+        try:
+            c = tf.extractfile(name).read()
+            print('---', name, '---')
+            print(c[:2500].decode('utf-8', errors='replace'))
+        except Exception as e: print('entry read fail', name, e)
+except Exception as e:
+    print('not simple tar:', type(e).__name__)
+# 尝试 sqlite
+try:
+    import sqlite3
+    conn = sqlite3.connect(':memory:')
+    conn.execute("ATTACH DATABASE ? AS db", ('/tmp/az.adb',))
+    print('sqlite tables:', conn.execute("SELECT name FROM db.sqlite_master WHERE type IN ('table','index')").fetchall())
+    for (t,) in conn.execute("SELECT name FROM db.sqlite_master WHERE type='table'"):
+        try:
+            print('table', t, 'rows:', conn.execute(f"SELECT count(*) FROM db.{t}").fetchone())
+            for row in conn.execute(f"SELECT * FROM db.{t} LIMIT 3"): print('  ', row)
+        except Exception as e: print('  read fail', e)
+except Exception as e:
+    print('not sqlite:', type(e).__name__)
+PYEOF
   echo "--- 解析所有 apk ---"
   "$APK_BIN" mkndx --allow-untrusted --output /tmp/test.adb *.apk 2>&1 | head -40
   echo "all mkndx exit=$?"
