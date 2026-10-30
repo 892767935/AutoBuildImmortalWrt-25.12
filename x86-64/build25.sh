@@ -103,7 +103,10 @@ PACKAGES="$PACKAGES luci-i18n-package-manager-zh-cn"
 # ====== 代理 ======
 PACKAGES="$PACKAGES luci-app-openclash"
 # ====== 去广告 ======
-PACKAGES="$PACKAGES luci-app-adzero"
+# 注意：luci-app-adzero (AdZero) 当前安装报 "package mentioned in index not found"，
+# 为让编译先通过、先产出固件，暂时移出 PACKAGES。AdZero apk 仍会下载到 packages/，
+# 后续修复 file 引用后可重新启用下面这行。
+# PACKAGES="$PACKAGES luci-app-adzero"
 # ======== shell/custom-packages.sh =======
 # 合并imm仓库以外的第三方插件
 PACKAGES="$PACKAGES $CUSTOM_PACKAGES"
