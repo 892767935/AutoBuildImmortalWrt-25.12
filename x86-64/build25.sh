@@ -52,10 +52,15 @@ APK_BIN=/home/build/immortalwrt/staging_dir/host/bin/apk
 if wget -q "$ADZERO_URL" -O /home/build/immortalwrt/packages/adzero-immortalwrt-25.12.2-x86_64.apk; then
   echo "✅ AdZero apk 已下载:"
   ls -lh /home/build/immortalwrt/packages/adzero-immortalwrt-25.12.2-x86_64.apk
-  # 用 apk add --no-deps 直接解包 adzero 到临时 root（跳过依赖检查，仅放文件）
+  # 用 apk 直接解包 adzero 到临时 root：--initdb 是全局选项须放在 add 之前；
+  # 不用管道判断退出码（管道后 $? 是 head 的），重定向到日志文件再取真实 exit
   rm -rf /tmp/adzroot && mkdir -p /tmp/adzroot
-  "$APK_BIN" add --initdb --no-deps --allow-untrusted --root /tmp/adzroot /home/build/immortalwrt/packages/adzero-immortalwrt-25.12.2-x86_64.apk 2>&1 | head -30
+  "$APK_BIN" --root /tmp/adzroot --initdb add --no-deps --allow-untrusted /home/build/immortalwrt/packages/adzero-immortalwrt-25.12.2-x86_64.apk > /tmp/adzero_add.log 2>&1
   echo "apk add --no-deps exit=$?"
+  echo "--- apk add 日志 ---"
+  cat /tmp/adzero_add.log | head -40
+  echo "--- /tmp/adzroot 内容 ---"
+  find /tmp/adzroot 2>/dev/null | head -50
   # 拷贝到 files/ 作文件级集成（最终由 imagebuilder 拷入固件）
   if [ -d /tmp/adzroot/usr ] || [ -d /tmp/adzroot/etc ]; then
     cp -a /tmp/adzroot/. /home/build/immortalwrt/files/
