@@ -47,35 +47,16 @@ ADZERO_URL="https://github.com/slobys/AdZero/releases/download/v0.21.5/adzero-im
 if wget -q "$ADZERO_URL" -O /home/build/immortalwrt/packages/adzero-immortalwrt-25.12.2-x86_64.apk; then
   echo "✅ AdZero apk 已下载:"
   ls -lh /home/build/immortalwrt/packages/*.apk
+  # 确认 adzero apk 内部声明的包名/版本/架构 (应为 luci-app-adzero / 0.21.5-r1 / noarch)
+  echo "--- apk adbdump adzero ---"
+  /home/build/immortalwrt/staging_dir/host/bin/apk adbdump /home/build/immortalwrt/packages/adzero-immortalwrt-25.12.2-x86_64.apk 2>&1 | head -30
+  # 重命名为 OpenWrt 标准 apk 命名，使文件名与内部包名 luci-app-adzero 一致，
+  # 否则 apk add 无法按 luci-app-adzero 索引到该文件 (报 no such package)
+  mv /home/build/immortalwrt/packages/adzero-immortalwrt-25.12.2-x86_64.apk /home/build/immortalwrt/packages/luci-app-adzero_0.21.5-r1_noarch.apk
+  echo "✅ 已重命名为: luci-app-adzero_0.21.5-r1_noarch.apk"
 else
   echo "⚠️ AdZero 下载失败，将不集成 luci-app-adzero"
 fi
-
-# ===== 诊断: apk mkndx 是否能正确解析 packages/*.apk =====
-(
-  cd /home/build/immortalwrt/packages
-  echo "=== 诊断 apk mkndx ==="
-  ls -la /home/build/immortalwrt/staging_dir/host/bin/apk* 2>&1 | head
-  APK_BIN=/home/build/immortalwrt/staging_dir/host/bin/apk
-  echo "--- 单独解析 adzero ---"
-  "$APK_BIN" mkndx --allow-untrusted --output /tmp/az.adb adzero-immortalwrt-25.12.2-x86_64.apk 2>&1 | head -20
-  echo "adzero mkndx exit=$?"
-  if [ -f /tmp/az.adb ]; then echo "az.adb 大小: $(wc -c < /tmp/az.adb)"; fi
-  echo "--- 生成 packages/packages.adb (mkndx 全部) ---"
-  "$APK_BIN" mkndx --allow-untrusted --output packages.adb *.apk 2>&1 | head
-  echo "--- apk list 带 root 查真实包名 ---"
-  mkdir -p /home/build/immortalwrt/tmp/root
-  "$APK_BIN" --root /home/build/immortalwrt/tmp/root --initdb --repositories-file /dev/null --repository /home/build/immortalwrt/packages/packages.adb --allow-untrusted update 2>&1 | head -5
-  "$APK_BIN" --root /home/build/immortalwrt/tmp/root --repositories-file /dev/null --repository /home/build/immortalwrt/packages/packages.adb list 2>&1 | head -40
-  echo "--- apk info 单个 adzero apk 直接读 pkgname ---"
-  "$APK_BIN" --root /home/build/immortalwrt/tmp/root --repositories-file /dev/null --repository /home/build/immortalwrt/packages/packages.adb --allow-untrusted info adzero-immortalwrt-25.12.2-x86_64 2>&1 | head -20
-  "$APK_BIN" --root /home/build/immortalwrt/tmp/root --repositories-file /dev/null --repository /home/build/immortalwrt/packages/packages.adb --allow-untrusted info '*' 2>&1 | head -40
-  echo "--- 解析所有 apk ---"
-  "$APK_BIN" mkndx --allow-untrusted --output /tmp/test.adb *.apk 2>&1 | head -40
-  echo "all mkndx exit=$?"
-  if [ -f /tmp/test.adb ]; then echo "test.adb 大小: $(wc -c < /tmp/test.adb)"; fi
-  echo "=== 诊断结束 ==="
-)
 
 # ============= 2. 集成 lucky (文件级集成，解包到 files) =============
 # lucky 官方/主流源只有 .ipk (25.12 无 apk)，但 lucky 二进制为静态编译(仅依赖libc)，
