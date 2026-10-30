@@ -7,10 +7,11 @@
 #   * 集成插件：
 #       1) openclash   —— 官方 luci 仓库 apk (luci-app-openclash)
 #       2) AdZero      —— 官方 release apk (adzero-immortalwrt-25.12.2-x86_64.apk)
-#       3) lucky       —— 官方/第三方源只有 ipk，25.12 无 apk，采用"文件级集成"
-#                          (下载 ipk -> 解包 -> 把文件放入 files/ 由 imagebuilder 拷入 rootfs)
+#       3) lucky       —— apk 方式（借鉴 wukongdaily/apk：luci-app-lucky + lucky + 中文包）
+#                          (下载 3 个 apk 到 packages/，PACKAGES 加包名，make image 自动安装)
 #       4) argon 主题  —— 官方 luci 仓库 apk (luci-theme-argon + luci-app-argon-config)
 # =============================================================
+
 
 # 确保在 imagebuilder 根目录下执行
 # (25.12 镜像的 WORKDIR 与 24.10 不同，可能不在 /home/build/immortalwrt，
@@ -19,6 +20,7 @@ cd /home/build/immortalwrt || { echo "❌ 无法进入 /home/build/immortalwrt";
 echo "当前工作目录: $(pwd)"
 [ -f Makefile ] && echo "✅ 已定位 imagebuilder Makefile" || { echo "❌ /home/build/immortalwrt 下未找到 Makefile"; exit 1; }
 
+
 source shell/custom-packages.sh
 echo "第三方软件包: $CUSTOM_PACKAGES"
 LOGFILE="/tmp/uci-defaults-log.txt"
@@ -26,8 +28,10 @@ echo "Starting 99-custom.sh at $(date)" >> $LOGFILE
 echo "编译固件大小为: $PROFILE MB"
 echo "Include Docker: $INCLUDE_DOCKER"
 
+
 echo "Create pppoe-settings"
 mkdir -p /home/build/immortalwrt/files/etc/config
+
 
 # 创建pppoe配置文件 yml传入环境变量ENABLE_PPPOE等 写入配置文件 供99-custom.sh读取
 cat << EOF > /home/build/immortalwrt/files/etc/config/pppoe-settings
@@ -36,8 +40,10 @@ pppoe_account=${PPPOE_ACCOUNT}
 pppoe_password=${PPPOE_PASSWORD}
 EOF
 
+
 echo "cat pppoe-settings"
 cat /home/build/immortalwrt/files/etc/config/pppoe-settings
+
 
 # ============= 1. 集成 AdZero (官方 apk -> apk add 到临时 root -> 拷专属文件到 files/) =============
 # AdZero = luci-app-adzero，官方为 ImmortalWrt 25.12.2 提供预编译 apk。
@@ -87,36 +93,26 @@ else
   echo "⚠️ AdZero 下载失败，将不集成 luci-app-adzero"
 fi
 
-# ============= 2. 集成 lucky (文件级集成，解包到 files) =============
-# lucky 官方/主流源只有 .ipk (25.12 无 apk)，但 lucky 二进制为静态编译(仅依赖libc)，
-# 且只有 4 个文件，非常适合"文件级集成"：解包后放入 files/ 由 imagebuilder 拷入 rootfs。
-echo "🔄 正在下载 lucky ipk 并解包到 files ..."
-LUCKY_URL="https://dl.openwrt.ai/packages-25.12/x86_64/kiddin9/lucky_2.27.2-r4_x86_64.ipk"
-mkdir -p /tmp/lucky
-if wget -q "$LUCKY_URL" -O /tmp/lucky/lucky.ipk; then
-  # 用 subshell 包裹 cd，避免改变主脚本的工作目录（否则后续 make image 会找不到 Makefile）
-  (
-    cd /tmp/lucky
-    # lucky.ipk 实际是 gzip 压缩的 tar 容器，内含 data.tar.gz / control.tar.gz
-    tar xzf lucky.ipk
-    if [ -f data.tar.gz ]; then
-      # 把 data 里的文件 (./etc/init.d/lucky ./etc/config/lucky ./usr/bin/lucky ./usr/libexec/lucky-runner) 解到 files/
-      tar xzf data.tar.gz -C /home/build/immortalwrt/files/
-      chmod +x /home/build/immortalwrt/files/usr/bin/lucky 2>/dev/null
-      chmod +x /home/build/immortalwrt/files/etc/init.d/lucky 2>/dev/null
-      chmod +x /home/build/immortalwrt/files/usr/libexec/lucky-runner 2>/dev/null
-      echo "✅ lucky 文件已集成到 files/ :"
-      ls -lh /home/build/immortalwrt/files/usr/bin/lucky
-    else
-      echo "⚠️ lucky ipk 解包失败(未找到 data.tar.gz)"
-    fi
-  )
-else
-  echo "⚠️ lucky 下载失败，将不集成 lucky"
-fi
+
+# ============= 2. 集成 lucky (apk 方式，借鉴 wukongdaily/ImmortalWrt-ImageBuilder) =============
+# 25.12 官方/主流源(dl.openwrt.ai)只有 lucky 的 .ipk，但 wukongdaily/apk 仓库为 25.12 提供
+# 完整 apk 三件套：luci-app-lucky(界面) + lucky(核心) + luci-i18n-lucky-zh-cn(中文)。
+# 做法：把 apk 下载到 imagebuilder 的 packages/ 目录，并在 PACKAGES 中加入包名，
+#       make image 时 imagebuilder 会自动扫描 packages/ 目录建立 apk 索引并安装。
+#       这样侧边栏菜单与 apk 管理器均可见（标准 apk 安装）。
+echo "🔄 正在下载 lucky apk 三件套到 packages/ ..."
+mkdir -p /home/build/immortalwrt/packages
+LUCKY_BASE="https://github.com/wukongdaily/apk/raw/master/run/x86/lucky"
+wget -q "$LUCKY_BASE/luci-app-lucky-3.0.3-r15.apk" -O /home/build/immortalwrt/packages/luci-app-lucky-3.0.3-r15.apk
+wget -q "$LUCKY_BASE/luci-i18n-lucky-zh-cn-26.021.55893~28c17bc.apk" -O /home/build/immortalwrt/packages/luci-i18n-lucky-zh-cn-26.021.55893~28c17bc.apk
+wget -q "$LUCKY_BASE/lucky-2.27.2-r1.apk" -O /home/build/immortalwrt/packages/lucky-2.27.2-r1.apk
+echo "✅ lucky apk 已下载到 packages/ :"
+ls -lh /home/build/immortalwrt/packages/luci-app-lucky*.apk /home/build/immortalwrt/packages/lucky*.apk
+
 
 # 输出调试信息
 echo "$(date '+%Y-%m-%d %H:%M:%S') - 开始构建固件..."
+
 
 # ============= imm仓库内的插件 =============
 # 定义所需安装的包列表 下列插件你都可以自行删减
@@ -129,6 +125,8 @@ PACKAGES="$PACKAGES luci-app-argon-config"
 PACKAGES="$PACKAGES luci-i18n-argon-config-zh-cn"
 # 25.12 使用 apk 包管理器，包管理界面为 luci-app-package-manager (替代 luci-app-opkg)
 PACKAGES="$PACKAGES luci-i18n-package-manager-zh-cn"
+# ====== lucky (apk 方式，见上方 lucky 段) ======
+PACKAGES="$PACKAGES luci-app-lucky lucky luci-i18n-lucky-zh-cn"
 # ====== 代理 ======
 PACKAGES="$PACKAGES luci-app-openclash"
 # ====== 去广告 ======
@@ -141,11 +139,13 @@ PACKAGES="$PACKAGES ucode ucode-mod-fs ucode-mod-socket ucode-mod-ubus ucode-mod
 # 合并imm仓库以外的第三方插件
 PACKAGES="$PACKAGES $CUSTOM_PACKAGES"
 
+
 # 判断是否需要编译 Docker 插件
 if [ "$INCLUDE_DOCKER" = "yes" ]; then
     PACKAGES="$PACKAGES luci-i18n-dockerman-zh-cn"
     echo "Adding package: luci-i18n-dockerman-zh-cn"
 fi
+
 
 # 若构建openclash 则添加内核
 if echo "$PACKAGES" | grep -q "luci-app-openclash"; then
@@ -162,18 +162,23 @@ else
     echo "⚪️ 未选择 luci-app-openclash"
 fi
 
+
 # 构建镜像
 echo "$(date '+%Y-%m-%d %H:%M:%S') - Building image with the following packages:"
 echo "$PACKAGES"
 
+
 # 确保在 imagebuilder 根目录执行 make image (lucky 等子流程曾切换过工作目录)
 cd /home/build/immortalwrt
 
+
 make image PROFILE="generic" PACKAGES="$PACKAGES" FILES="/home/build/immortalwrt/files" ROOTFS_PARTSIZE=$PROFILE
+
 
 if [ $? -ne 0 ]; then
     echo "$(date '+%Y-%m-%d %H:%M:%S') - Error: Build failed!"
     exit 1
 fi
+
 
 echo "$(date '+%Y-%m-%d %H:%M:%S') - Build completed successfully."
