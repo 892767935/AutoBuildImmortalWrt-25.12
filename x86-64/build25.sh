@@ -55,9 +55,16 @@ fi
 (
   cd /home/build/immortalwrt/packages
   echo "=== 诊断 apk mkndx ==="
-  apk mkndx --allow-untrusted --output /tmp/test.adb *.apk 2>&1 | head -40
-  echo "mkndx exit=$?"
-  if [ -f /tmp/test.adb ]; then echo "test.adb 生成, 大小: $(wc -c < /tmp/test.adb)"; fi
+  ls -la /home/build/immortalwrt/staging_dir/host/bin/apk* 2>&1 | head
+  APK_BIN=/home/build/immortalwrt/staging_dir/host/bin/apk
+  echo "--- 单独解析 adzero ---"
+  "$APK_BIN" mkndx --allow-untrusted --output /tmp/az.adb adzero-immortalwrt-25.12.2-x86_64.apk 2>&1 | head -20
+  echo "adzero mkndx exit=$?"
+  if [ -f /tmp/az.adb ]; then echo "az.adb 大小: $(wc -c < /tmp/az.adb)"; fi
+  echo "--- 解析所有 apk ---"
+  "$APK_BIN" mkndx --allow-untrusted --output /tmp/test.adb *.apk 2>&1 | head -40
+  echo "all mkndx exit=$?"
+  if [ -f /tmp/test.adb ]; then echo "test.adb 大小: $(wc -c < /tmp/test.adb)"; fi
   echo "=== 诊断结束 ==="
 )
 
