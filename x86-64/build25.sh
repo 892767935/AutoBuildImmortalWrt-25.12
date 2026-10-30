@@ -12,6 +12,13 @@
 #       4) argon 主题  —— 官方 luci 仓库 apk (luci-theme-argon + luci-app-argon-config)
 # =============================================================
 
+# 确保在 imagebuilder 根目录下执行
+# (25.12 镜像的 WORKDIR 与 24.10 不同，可能不在 /home/build/immortalwrt，
+#  必须显式 cd，否则 make image 找不到 Makefile、相对路径 files/ 也会落错目录)
+cd /home/build/immortalwrt || { echo "❌ 无法进入 /home/build/immortalwrt"; exit 1; }
+echo "当前工作目录: $(pwd)"
+[ -f Makefile ] && echo "✅ 已定位 imagebuilder Makefile" || { echo "❌ /home/build/immortalwrt 下未找到 Makefile"; exit 1; }
+
 source shell/custom-packages.sh
 echo "第三方软件包: $CUSTOM_PACKAGES"
 LOGFILE="/tmp/uci-defaults-log.txt"
