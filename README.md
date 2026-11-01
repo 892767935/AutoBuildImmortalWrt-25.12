@@ -1,9 +1,11 @@
 # AutoBuildImmortalWrt-25.12
 
-基于 **ImmortalWrt 25.12 系列** + ImageBuilder + GitHub Actions 的 x86-64 固件自动编译项目。
+基于 **ImmortalWrt（25.12 / 24.10.6）** + ImageBuilder + GitHub Actions 的 x86-64 固件自动编译项目，内置插件阵容一致。
 
-> 本项目为原 [AutoBuildImmortalWrt](https://github.com/wukongdaily/AutoBuildImmortalWrt) 的 **25.12 (apk) 版本**独立仓库。
-> 原项目仅支持到 24.10.6（opkg 包管理）；25.12 起 ImmortalWrt 已全面切换到 **apk** 包管理器，本项目据此完整适配。
+> 本项目为原 [AutoBuildImmortalWrt](https://github.com/wukongdaily/AutoBuildImmortalWrt) 的独立仓库。
+> 提供两套编译工作流，插件完全相同：
+> - **25.12 系列（apk 包管理）**：ImmortalWrt 25.12 起全面切换到 apk 包管理器。
+> - **24.10.6（opkg 包管理）**：兼容仍需 opkg/.ipk 版本的用户。
 
 ## 🚀 默认集成插件
 
@@ -30,18 +32,34 @@
 
 > ℹ️ 编译日志中 OpenClash 偶现的 `/lib/functions.sh: No such file or directory` 等提示，是 OpenClash 脚本在**构建期**（imagebuilder 准备 rootfs）被提前执行、当时 `/lib/functions.sh` 尚未就位所致，属编译期正常 warning；**不影响固件产出，也不影响 OpenClash 在路由器上运行**（运行时该文件已存在）。
 
+## 🔧 24.10.6（opkg）编译工作流
+
+配套的 **`build-x86-64-immortalwrt-24.10.x`** 工作流使用 ImageBuilder 镜像 `immortalwrt/imagebuilder:x86-64-openwrt-24.10.6`，插件阵容与 25.12 **完全一致**。24.10 系列用 **opkg（.ipk）** 包管理，与 25.12 的 apk 不同，故独立适配：
+
+- `x86-64/build24.sh`：opkg 方式构建脚本。
+- **OpenClash**：24.10.6 官方 luci 源自带 `luci-app-openclash`（`.ipk`），直接包名安装 + clash_meta 内核 / GeoIP/GeoSite。
+- **Lucky**：24.10 官方源无 lucky，改为从 wukongdaily/store 取 24.10 专用 ipk（`luci-app-lucky` 1.2.0 + `lucky` 2.17.8），下载到 `packages/` 由 imagebuilder 索引安装。
+- **AdZero**：官方 Release 的 `luci-app-adzero_0.23.4-r1_all.ipk` 文件级集成（解 IPK 内层 data.tar.gz 打入 `files/`），运行时依赖（adblock-fast、conntrack、tcpdump、ucode 全家等）从 24.10.6 官方源补齐。
+- **Argon 主题**：官方 luci 源 `luci-theme-argon` + `luci-app-argon-config` + 中文包。
+- `files/etc/uci-defaults/99-custom.sh`：包管理器判断已适配 **opkg / apk 双版本**，24.10 下不再执行 `apk` 命令。
+
+产物发布到 Release tag **`Autobuild-x86-64-24.10`**，文件名类似 `immortalwrt-24.10.6-x86-64-generic-squashfs-combined-efi.img.gz`。
+
 ## 🔨 基本用法（GitHub Actions）
 
 1. **Fork 或新建仓库**（见下方"新建 GitHub 项目"）。
-2. 进入仓库 **Actions** 标签页 → 选择 **build-x86-64-immortalwrt-25.12.x** 工作流 → **Run workflow**。
+2. 进入仓库 **Actions** 标签页 → 选择对应工作流 → **Run workflow**：
+   - **build-x86-64-immortalwrt-25.12.x** —— 25.12 系列（apk）
+   - **build-x86-64-immortalwrt-24.10.x** —— 24.10.6（opkg）
 3. 按需填写参数：
-   - **选择luci版本**：`25.12.0` / `25.12.1` / `25.12.2`（默认最新稳定版 25.12.2）
+   - **选择luci版本**：25.12 工作流为 `25.12.0` / `25.12.1` / `25.12.2`（默认 25.12.2）；24.10 工作流为 `24.10.6` / `24.10.5`（默认 24.10.6）
    - **路由器管理地址**：多网口机型生效，如 `192.168.1.10`
    - **固件大小**：默认 1024（MB）
    - **是否编译 Docker 插件**：`yes` / `no`
    - **是否配置PPPoE**：`yes` 时填写宽带账号/密码
 4. 构建完成后固件自动上传到 **Releases**，文件名类似：
-   `immortalwrt-25.12.2-x86-64-generic-squashfs-combined-efi.img.gz`
+   - 25.12：`immortalwrt-25.12.2-x86-64-generic-squashfs-combined-efi.img.gz`
+   - 24.10：`immortalwrt-24.10.6-x86-64-generic-squashfs-combined-efi.img.gz`
 
 ## 🌐 固件默认配置（对应 99-custom.sh）
 
@@ -62,22 +80,32 @@
 
 ## 📦 插件来源
 
+**25.12（apk）**
 - OpenClash：ImmortalWrt 25.12.2 官方 luci 仓库
 - Lucky：wukongdaily/apk（25.12 apk 三件套：`luci-app-lucky` 3.0.3 + `lucky` 2.27.2 + 中文包）
 - AdZero：[slobys/AdZero](https://github.com/slobys/AdZero) 官方 Release（v0.21.5，ImmortalWrt 25.12.2）
 - Argon：ImmortalWrt 25.12.2 官方 luci 仓库
 
+**24.10.6（opkg）**
+- OpenClash：ImmortalWrt 24.10.6 官方 luci 仓库（`luci-app-openclash`）
+- Lucky：wukongdaily/store（24.10 ipk：`luci-app-lucky` 1.2.0 + `lucky` 2.17.8）
+- AdZero：[slobys/AdZero](https://github.com/slobys/AdZero) 官方 Release（v0.23.4，`luci-app-adzero_0.23.4-r1_all.ipk`）
+- Argon：ImmortalWrt 24.10.6 官方 luci 仓库
+
 ## 📁 项目结构
 
 ```
-├── .github/workflows/build-x86-64-25.12.x.yml   # GitHub Actions 工作流
-├── files/etc/uci-defaults/99-custom.sh           # 首次开机配置(网络/防火墙/Argon/Lucky/apk适配)
+├── .github/workflows/
+│   ├── build-x86-64-25.12.x.yml               # 25.12 (apk) 编译工作流
+│   └── build-x86-64-24.10.x.yml               # 24.10.6 (opkg) 编译工作流
+├── files/etc/uci-defaults/99-custom.sh        # 首次开机配置(网络/防火墙/Argon/Lucky/双包管理器适配)
 ├── shell/
-│   ├── custom-packages.sh                        # 可选第三方插件拼接
-│   └── prepare-packages.sh                       # 收集 .apk
+│   ├── custom-packages.sh                     # 可选第三方插件拼接
+│   └── prepare-packages.sh                    # 收集 .apk
 └── x86-64/
-    ├── build25.sh                                # 25.12 构建脚本(Lucky apk / AdZero 集成 + make image)
-    └── imm.config                                # 25.12 (apk) 内核配置
+    ├── build25.sh                             # 25.12 构建脚本(Lucky apk / AdZero 集成 + make image)
+    ├── build24.sh                             # 24.10.6 构建脚本(opkg / Lucky ipk / AdZero 文件级集成)
+    └── imm.config                             # 25.12 (apk) 内核配置
 ```
 
 ## 🙏 鸣谢
