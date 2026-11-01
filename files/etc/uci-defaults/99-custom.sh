@@ -208,10 +208,11 @@ if [ -x "/etc/init.d/lucky" ] && [ -f "/etc/config/lucky" ]; then
     echo "✅ lucky 已启用" >>$LOGFILE
 fi
 
-# ============ 25.12 适配：opkg -> apk ============
+# ============ 适配：opkg / apk 包管理器 ============
 # 若luci-app-advancedplus (进阶设置)已安装 则去除zsh的调用 防止命令行报 /usr/bin/zsh: not found的提示
-# 25.12 起使用 apk 包管理器，用 apk info 判断包是否已安装
-if apk info | grep -q '^luci-app-advancedplus$'; then
+# 25.12 用 apk，24.10 用 opkg；用 command -v 判断当前包管理器，避免 24.10 下 apk 命令不存在导致报错
+if ( command -v apk >/dev/null 2>&1 && apk info | grep -q '^luci-app-advancedplus$' ) || \
+   ( command -v opkg >/dev/null 2>&1 && opkg list-installed | grep -q '^luci-app-advancedplus ' ); then
     sed -i '/\/usr\/bin\/zsh/d' /etc/profile
     sed -i '/\/bin\/zsh/d' /etc/init.d/advancedplus
     sed -i '/\/usr\/bin\/zsh/d' /etc/init.d/advancedplus
