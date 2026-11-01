@@ -123,6 +123,9 @@ PACKAGES="$PACKAGES luci-i18n-firewall-zh-cn"
 PACKAGES="$PACKAGES luci-theme-argon"
 # PACKAGES="$PACKAGES luci-app-argon-config"
 # PACKAGES="$PACKAGES luci-i18n-argon-config-zh-cn"
+# ====== 定时重启 ======
+PACKAGES="$PACKAGES luci-app-autoreboot"
+PACKAGES="$PACKAGES luci-i18n-autoreboot-zh-cn"
 # 25.12 使用 apk 包管理器，包管理界面为 luci-app-package-manager (替代 luci-app-opkg)
 PACKAGES="$PACKAGES luci-i18n-package-manager-zh-cn"
 # ====== lucky (apk 方式，见上方 lucky 段) ======

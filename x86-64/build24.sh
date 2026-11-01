@@ -7,7 +7,7 @@
 #       1) openclash   —— ImmortalWrt 24.10.6 官方 luci 源 ipk (luci-app-openclash)
 #       2) AdZero      —— 官方 release ipk (luci-app-adzero_0.23.4-r1_all.ipk) 文件级集成
 #       3) lucky       —— wukongdaily/store 提供的 24.10 ipk（luci-app-lucky + lucky）
-#       4) argon 主题  —— 官方 luci 源 ipk (luci-theme-argon + luci-app-argon-config)
+#       4) argon 主题  —— 官方 luci 源 ipk (luci-theme-argon)
 # =============================================================
 
 # 确保在 imagebuilder 根目录下执行
@@ -88,8 +88,9 @@ PACKAGES="$PACKAGES curl"
 PACKAGES="$PACKAGES luci-i18n-firewall-zh-cn"
 # ====== argon 主题 ======
 PACKAGES="$PACKAGES luci-theme-argon"
-PACKAGES="$PACKAGES luci-app-argon-config"
-PACKAGES="$PACKAGES luci-i18n-argon-config-zh-cn"
+# ====== 定时重启 ======
+PACKAGES="$PACKAGES luci-app-autoreboot"
+PACKAGES="$PACKAGES luci-i18n-autoreboot-zh-cn"
 # 24.10 使用 opkg 包管理器，包管理界面为 luci-app-package-manager
 PACKAGES="$PACKAGES luci-i18n-package-manager-zh-cn"
 # ====== lucky (ipk 方式，见上方 lucky 段) ======
