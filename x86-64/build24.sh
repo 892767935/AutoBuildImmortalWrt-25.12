@@ -5,9 +5,9 @@
 #   * 24.10 系列包管理器为 opkg（.ipk），与 25.12(apk) 不同
 #   * 集成插件（与 25.12 保持一致）：
 #       1) openclash   —— ImmortalWrt 24.10.6 官方 luci 源 ipk (luci-app-openclash)
-#       2) AdZero      —— 官方 release ipk (luci-app-adzero_0.23.4-r1_all.ipk) 文件级集成
-#       3) lucky       —— wukongdaily/store 提供的 24.10 ipk（luci-app-lucky + lucky）
-#       4) argon 主题  —— 官方 luci 源 ipk (luci-theme-argon)
+#       2) lucky       —— wukongdaily/store 提供的 24.10 ipk（luci-app-lucky + lucky）
+#       3) argon 主题  —— 官方 luci 源 ipk (luci-theme-argon)
+#       4) 定时重启    —— 官方 luci 源 ipk (luci-app-autoreboot)
 # =============================================================
 
 # 确保在 imagebuilder 根目录下执行
@@ -37,34 +37,7 @@ echo "cat pppoe-settings"
 cat /home/build/immortalwrt/files/etc/config/pppoe-settings
 
 
-# ============= 1. 集成 AdZero (官方 release ipk -> 文件级打入 files/) =============
-# 24.10 用 opkg，官方为 ImmortalWrt 提供统一 IPK（luci-app-adzero_0.23.4-r1_all.ipk，noarch）。
-# 做法：下载 IPK，解出内层 data.tar.gz 直接解压到 files/（文件落到 /usr、/etc、/www 对应路径），
-#       再在 PACKAGES 中补齐其运行时依赖（adblock-fast、ucode 系列、tcpdump 等），
-#       make image 时由 imagebuilder 从官方源安装这些依赖，保证 AdZero 在固件内可用。
-echo "🔄 正在下载 AdZero 官方 ipk ..."
-mkdir -p /home/build/immortalwrt/files
-ADZERO_URL="https://github.com/slobys/AdZero/releases/download/v0.23.4/luci-app-adzero_0.23.4-r1_all.ipk"
-mkdir -p /tmp/adzero
-if wget -q "$ADZERO_URL" -O /tmp/adzero/adzero.ipk; then
-  echo "✅ AdZero ipk 已下载:"
-  ls -lh /tmp/adzero/adzero.ipk
-  cd /tmp/adzero
-  tar -xzf adzero.ipk
-  if [ -f data.tar.gz ]; then
-    tar -xzf data.tar.gz -C /home/build/immortalwrt/files/
-    echo "✅ AdZero 文件已解压到 files/"
-    find /home/build/immortalwrt/files -iname '*adzero*' 2>/dev/null | head -20
-  else
-    echo "⚠️ AdZero data.tar.gz 未找到，将不集成"
-  fi
-  cd /home/build/immortalwrt
-else
-  echo "⚠️ AdZero 下载失败，将不集成 luci-app-adzero"
-fi
-
-
-# ============= 2. 集成 lucky (wukongdaily/store 提供的 24.10 ipk) =============
+# ============= 1. 集成 lucky (wukongdaily/store 提供的 24.10 ipk) =============
 # 24.10 官方源无 lucky，这里从 wukongdaily/store 仓库取 x86-64 的 ipk（luci-app-lucky + lucky）。
 # 做法：把 ipk 下载到 imagebuilder 的 packages/ 目录，并在 PACKAGES 中加入包名，
 #       make image 时 imagebuilder 会自动扫描 packages/ 建立索引并安装。
@@ -97,12 +70,6 @@ PACKAGES="$PACKAGES luci-i18n-package-manager-zh-cn"
 PACKAGES="$PACKAGES luci-app-lucky lucky"
 # ====== 代理 ======
 PACKAGES="$PACKAGES luci-app-openclash"
-# ====== 去广告 ======
-# AdZero 已改为文件级集成（见上方 AdZero 段），不再加入 PACKAGES（避免走 opkg 索引安装失败）；
-# 补齐其运行时依赖（与 IPK control 的 Depends 一致），确保 AdZero 在固件内可用
-PACKAGES="$PACKAGES adblock-fast"
-PACKAGES="$PACKAGES ca-bundle conntrack coreutils-timeout rpcd-mod-file rpcd-mod-ucode tcpdump"
-PACKAGES="$PACKAGES ucode ucode-mod-fs ucode-mod-socket ucode-mod-ubus ucode-mod-uci ucode-mod-uloop"
 # ======== shell/custom-packages.sh =======
 # 合并imm仓库以外的第三方插件
 PACKAGES="$PACKAGES $CUSTOM_PACKAGES"

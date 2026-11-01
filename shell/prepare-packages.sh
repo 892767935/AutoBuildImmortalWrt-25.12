@@ -4,7 +4,7 @@
 # 说明：
 #   * ImmortalWrt 25.12 包管理器为 apk，imagebuilder 的 packages/ 目录只认 .apk
 #   * 本脚本负责把 extra-packages/ 目录下搜集到的 .apk 统一整理到 packages/
-#   * (AdZero 官方 apk 已在 build25.sh 中直接下载到 packages/，本脚本为兜底/扩展)
+#   * (Lucky 等 apk 已由 build25.sh 直接下载到 packages/，本脚本为兜底/扩展)
 # =============================================================
 
 BASE_DIR="extra-packages"
@@ -23,5 +23,5 @@ echo "✅ 所有 .apk 文件已整理至 $TARGET_DIR/"
 if ls "$TARGET_DIR"/*.apk >/dev/null 2>&1; then
   ls -lh "$TARGET_DIR"/*.apk
 else
-  echo "ℹ️ packages/ 目录暂无 .apk (AdZero 由 build25.sh 下载)"
+  echo "ℹ️ packages/ 目录暂无 .apk (Lucky 等 apk 由 build25.sh 下载)"
 fi

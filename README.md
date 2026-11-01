@@ -13,7 +13,6 @@
 |------|----------|------|
 | **OpenClash** | 官方 luci apk | `luci-app-openclash`，自动附带 clash_meta 内核 + GeoIP/GeoSite 数据库 |
 | **Lucky** | apk 三件套 | `luci-app-lucky` + `lucky` + `luci-i18n-lucky-zh-cn`（来源 wukongdaily/apk 的 25.12 apk 源），标准 apk 安装，侧边栏菜单与软件包管理器均可见 |
-| **AdZero** | 官方 release apk（文件级集成） | `luci-app-adzero`（v0.21.5），官方为 ImmortalWrt 25.12.2 预编译。因该 apk 无法被 imagebuilder 的 apk 索引安装，采用「apk add 解包 → 拷贝 AdZero 专属文件到 `files/`」打入固件，并补齐其全部运行时依赖（adblock-fast、conntrack、tcpdump-mini、ucode 全家等） |
 | **Argon 主题** | 官方 luci apk | `luci-theme-argon`，刷机后默认生效 |
 | **定时重启** | 官方 luci | `luci-app-autoreboot` + 中文包，在「系统 → 定时重启」配置自动重启 |
 
@@ -26,7 +25,7 @@
 - ImmortalWrt **25.12 起包管理器从 opkg 改为 apk**，官方仓库包为 `.apk` 格式。
 - ImageBuilder 的 `packages/` 目录只认 `.apk` 文件，`.ipk` 无法被 25.12 安装。
 - 本项目已按此适配：
-  - `x86-64/build25.sh`：Lucky 以 apk 三件套（`luci-app-lucky` + `lucky` + `luci-i18n-lucky-zh-cn`）下载到 `packages/` 并由 PACKAGES 安装；AdZero 以 `apk add <adzero.apk>`（带官方仓库解析依赖）解包到临时 root，再用 `apk info -L` 列出其专属文件拷入 `files/`，依赖由 PACKAGES 显式安装。
+  - `x86-64/build25.sh`：Lucky 以 apk 三件套（`luci-app-lucky` + `lucky` + `luci-i18n-lucky-zh-cn`）下载到 `packages/` 并由 PACKAGES 安装。
   - `shell/prepare-packages.sh`：改为收集 `.apk`。
   - `x86-64/imm.config`：`CONFIG_USE_APK=y`，opkg 相关选项全部替换为 apk / luci-app-package-manager。
   - `files/etc/uci-defaults/99-custom.sh`：`opkg list-installed` → `apk info`，并启用 Lucky 服务、设置 Argon 为默认主题、做网口/防火墙/DNS 等开机初始化。
@@ -40,7 +39,6 @@
 - `x86-64/build24.sh`：opkg 方式构建脚本。
 - **OpenClash**：24.10.6 官方 luci 源自带 `luci-app-openclash`（`.ipk`），直接包名安装 + clash_meta 内核 / GeoIP/GeoSite。
 - **Lucky**：24.10 官方源无 lucky，改为从 wukongdaily/store 取 24.10 专用 ipk（`luci-app-lucky` 1.2.0 + `lucky` 2.17.8），下载到 `packages/` 由 imagebuilder 索引安装。
-- **AdZero**：官方 Release 的 `luci-app-adzero_0.23.4-r1_all.ipk` 文件级集成（解 IPK 内层 data.tar.gz 打入 `files/`），运行时依赖（adblock-fast、conntrack、tcpdump、ucode 全家等）从 24.10.6 官方源补齐。
 - **Argon 主题**：官方 luci 源 `luci-theme-argon`。
 - **定时重启**：官方 luci 源 `luci-app-autoreboot` + `luci-i18n-autoreboot-zh-cn`，可在「系统 → 定时重启」配置自动重启。
 - `files/etc/uci-defaults/99-custom.sh`：包管理器判断已适配 **opkg / apk 双版本**，24.10 下不再执行 `apk` 命令。
@@ -85,14 +83,12 @@
 **25.12（apk）**
 - OpenClash：ImmortalWrt 25.12.2 官方 luci 仓库
 - Lucky：wukongdaily/apk（25.12 apk 三件套：`luci-app-lucky` 3.0.3 + `lucky` 2.27.2 + 中文包）
-- AdZero：[slobys/AdZero](https://github.com/slobys/AdZero) 官方 Release（v0.21.5，ImmortalWrt 25.12.2）
 - Argon：ImmortalWrt 25.12.2 官方 luci 仓库
 - 定时重启：ImmortalWrt 25.12.2 官方 luci 仓库（`luci-app-autoreboot`）
 
 **24.10.6（opkg）**
 - OpenClash：ImmortalWrt 24.10.6 官方 luci 仓库（`luci-app-openclash`）
 - Lucky：wukongdaily/store（24.10 ipk：`luci-app-lucky` 1.2.0 + `lucky` 2.17.8）
-- AdZero：[slobys/AdZero](https://github.com/slobys/AdZero) 官方 Release（v0.23.4，`luci-app-adzero_0.23.4-r1_all.ipk`）
 - Argon：ImmortalWrt 24.10.6 官方 luci 仓库
 - 定时重启：ImmortalWrt 24.10.6 官方 luci 仓库（`luci-app-autoreboot`）
 
@@ -107,8 +103,8 @@
 │   ├── custom-packages.sh                     # 可选第三方插件拼接
 │   └── prepare-packages.sh                    # 收集 .apk
 └── x86-64/
-    ├── build25.sh                             # 25.12 构建脚本(Lucky apk / AdZero 集成 + make image)
-    ├── build24.sh                             # 24.10.6 构建脚本(opkg / Lucky ipk / AdZero 文件级集成)
+    ├── build25.sh                             # 25.12 构建脚本(Lucky apk / autoreboot + make image)
+    ├── build24.sh                             # 24.10.6 构建脚本(opkg / Lucky ipk / autoreboot)
     └── imm.config                             # 25.12 (apk) 内核配置
 ```
 
@@ -117,6 +113,5 @@
 - [ImmortalWrt](https://github.com/immortalwrt)
 - [wukongdaily/AutoBuildImmortalWrt](https://github.com/wukongdaily/AutoBuildImmortalWrt)
 - [gdy666/luci-app-lucky](https://github.com/gdy666/lucky) / [Lucky](https://ilucky.net)
-- [slobys/AdZero](https://github.com/slobys/AdZero)
 - [vernesong/OpenClash](https://github.com/vernesong/OpenClash)
 - [kiddin9/kwrt-packages](https://github.com/kiddin9/kwrt-packages)
